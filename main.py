@@ -3,8 +3,7 @@ from discord.ext import tasks
 import datetime
 from dotenv import load_dotenv
 import os
-from datetime import timezone
-import pytz  # You'll need to install this package
+import pytz
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
