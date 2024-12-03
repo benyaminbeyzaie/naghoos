@@ -10,7 +10,7 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 MESSAGES = {
-    "11:00": {
+    "16:30": {
         1313509328346546219: "Bip Bip, Looks like a great day today!"
     }
 }
