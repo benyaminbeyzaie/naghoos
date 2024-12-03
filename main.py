@@ -9,7 +9,7 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 MESSAGES = {
-    "17:40": {
+    "11:00": {
         1280064375637409804: "Bip Bip, This is a test message"
     }
 }
