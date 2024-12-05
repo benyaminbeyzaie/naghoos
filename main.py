@@ -8,11 +8,14 @@ from openai import OpenAI
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
+# define weekdays
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 MESSAGES = {
     "11:00": {
         1280064375637409804: {
-            "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201"]
+            "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201"],
+            "exception_days": [WEEKDAYS[0], WEEKDAYS[3]]
         }
     },
 }
@@ -27,7 +30,7 @@ async def get_random_message():
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a friendly reminder bot. Generate a short, casual reminder message and be so creative and fun."},
-                {"role": "user", "content": "Generate a random reminder message in one sentence to remind people to write their daily updates. Be creative and fun."}
+                {"role": "user", "content": "Generate a random reminder message in one sentence to remind people to write their daily updates. Be creative and fun. Keep in mind that you are writing this reminder for a team of software engineers."}
             ],
             max_tokens=100,
             temperature=1.0
@@ -50,6 +53,8 @@ async def schedule_messages():
     
     if current_time in MESSAGES:
         for channel_id, config in MESSAGES[current_time].items():
+            if now.strftime("%A") in config["exception_days"]:
+                continue
             channel = client.get_channel(channel_id)
             if channel:
                 random_message = await get_random_message()
