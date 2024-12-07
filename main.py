@@ -8,21 +8,23 @@ from openai import OpenAI
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-# define weekdays
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 MESSAGES = {
     "11:00": {
         1280064375637409804: {
             "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201"],
-            "exception_days": [WEEKDAYS[0], WEEKDAYS[3]]
+            "exception_days": [WEEKDAYS[0], WEEKDAYS[3], WEEKDAYS[5], WEEKDAYS[6]]
         }
     },
 }
 
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
-open_ai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="https://api.avalai.ir/v1")
+open_ai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
 
 async def get_random_message():
     try:
