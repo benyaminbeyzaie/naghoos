@@ -16,7 +16,7 @@ WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 MESSAGES = {
     "11:00": {
         1280064375637409804: {
-            "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201"],
+            "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201", "1293584148879118428"],
             "exception_days": [WEEKDAYS[0], WEEKDAYS[3], WEEKDAYS[5], WEEKDAYS[6]]
         }
     },
@@ -27,12 +27,16 @@ client = discord.Client(intents=intents)
 open_ai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
 
 async def get_random_message():
+    import random
+
+    themes = ["pirate", "cowboy", "sci-fi", "Shakespeare", "hacker-slang", "robot", "80s action movie"]
+    random_theme = random.choice(themes)
     try:
         response = open_ai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a friendly reminder bot. Generate a short, casual reminder message and be so creative and fun."},
-                {"role": "user", "content": "Generate a random reminder message in one sentence to remind people to write their daily updates. Be creative and fun. Keep in mind that you are writing this reminder for a team of software engineers."}
+                {"role": "system", "content": "You are a fun and creative reminder bot."},
+                {"role": "user", "content": f"Write a one-sentence reminder to a team of software engineers to submit their daily updates. Make it funny, creative, and based on a {random_theme} theme."}
             ],
             max_tokens=100,
             temperature=1.0
