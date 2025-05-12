@@ -16,7 +16,7 @@ WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 MESSAGES = {
     "11:00": {
         1280064375637409804: {
-            "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201", "1293584148879118428"],
+            "user_mentions": ["708219897108365332", "744614358717300738", "288473580679987201", "819884346126237696"],
             "exception_days": [WEEKDAYS[0], WEEKDAYS[3], WEEKDAYS[5], WEEKDAYS[6]]
         }
     },
