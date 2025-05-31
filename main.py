@@ -122,24 +122,37 @@ async def on_message(message):
         target_date = datetime.datetime.now().date()
         date_str = "today"
         
-        # Try to find a date in the message
-        # Extract the text after "summarize"
+        # Extract the full message content
         content = message.content.lower()
-        summarize_idx = content.find("summarize")
-        if summarize_idx != -1:
-            text_after_summarize = content[summarize_idx + len("summarize"):].strip()
+        
+        # Remove bot mention from the content to get cleaner text
+        # This handles both <@ID> and <@!ID> formats
+        for mention in message.mentions:
+            mention_text = f"<@{mention.id}>"
+            mention_text_nick = f"<@!{mention.id}>"
+            content = content.replace(mention_text, "").replace(mention_text_nick, "")
             
-            # Check for date patterns in the text
-            # First, check for any channel mentions and remove them for date parsing
-            for ch_mention in message.channel_mentions:
-                text_after_summarize = text_after_summarize.replace(f"<#{ch_mention.id}>", "")
+        # Remove any channel mentions to avoid confusing the date parser
+        for ch_mention in message.channel_mentions:
+            content = content.replace(f"<#{ch_mention.id}>", "")
+        
+        # Clean up the content - remove the "summarize" command and any extra spaces
+        content = content.replace("summarize", "").strip()
+        
+        # If there's any text left, try to parse it as a date
+        if content:
+            # Try to parse the date using dateparser
+            parsed_date = dateparser.parse(content, settings={
+                'RELATIVE_BASE': datetime.datetime.now(),
+                'PREFER_DATES_FROM': 'past'
+            })
             
-            # Try to parse a date from the remaining text
-            if text_after_summarize:
-                parsed_date = dateparser.parse(text_after_summarize, settings={'RELATIVE_BASE': datetime.datetime.now()})
-                if parsed_date:
-                    target_date = parsed_date.date()
-                    date_str = target_date.strftime("%Y-%m-%d")
+            if parsed_date:
+                target_date = parsed_date.date()
+                date_str = target_date.strftime("%Y-%m-%d")
+                print(f"Successfully parsed date: {date_str} from input: '{content}'")
+            else:
+                print(f"Failed to parse date from: '{content}'")
         
         await message.channel.send(f"Generating summary for {date_str}, please wait...")
         
