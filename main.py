@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import os
 import pytz
 from openai import OpenAI
+import dateparser
+import re
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -115,27 +117,53 @@ async def on_message(message):
     # Check if the bot is mentioned and "summarize" is in the message
     if client.user.mentioned_in(message) and "summarize" in message.content.lower():
         channel = message.channel
-        await message.channel.send("Generating summary, please wait...")
+        
+        # Default to today's date
+        target_date = datetime.datetime.now().date()
+        date_str = "today"
+        
+        # Try to find a date in the message
+        # Extract the text after "summarize"
+        content = message.content.lower()
+        summarize_idx = content.find("summarize")
+        if summarize_idx != -1:
+            text_after_summarize = content[summarize_idx + len("summarize"):].strip()
+            
+            # Check for date patterns in the text
+            # First, check for any channel mentions and remove them for date parsing
+            for ch_mention in message.channel_mentions:
+                text_after_summarize = text_after_summarize.replace(f"<#{ch_mention.id}>", "")
+            
+            # Try to parse a date from the remaining text
+            if text_after_summarize:
+                parsed_date = dateparser.parse(text_after_summarize, settings={'RELATIVE_BASE': datetime.datetime.now()})
+                if parsed_date:
+                    target_date = parsed_date.date()
+                    date_str = target_date.strftime("%Y-%m-%d")
+        
+        await message.channel.send(f"Generating summary for {date_str}, please wait...")
         
         # Fetch messages from the channel
         messages = []
-        async for msg in channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE):
-            # Only include messages from today
-            if msg.created_at.date() == datetime.datetime.now().date():
-                messages.append(msg)
+        mentioned_channel = channel
         
         # If there are channel mentions, use the first mentioned channel instead
         if message.channel_mentions:
             mentioned_channel = message.channel_mentions[0]
             await message.channel.send(f"Summarizing messages from {mentioned_channel.mention}...")
-            
-            messages = []
-            async for msg in mentioned_channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE):
-                if msg.created_at.date() == datetime.datetime.now().date():
-                    messages.append(msg)
+        
+        # Fetch messages with date filtering
+        async for msg in mentioned_channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE):
+            # Check if message is from the target date
+            msg_date = msg.created_at.date()
+            if msg_date == target_date:
+                messages.append(msg)
         
         # Generate and send the summary
-        summary = await summarize_channel_messages(messages)
-        await message.channel.send(f"**Daily Summary**\n\n{summary}")
+        if messages:
+            summary = await summarize_channel_messages(messages)
+            await message.channel.send(f"**Summary for {date_str}**\n\n{summary}")
+        else:
+            await message.channel.send(f"No messages found for {date_str} in {mentioned_channel.mention}.")
 
 client.run(TOKEN)
