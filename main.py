@@ -22,7 +22,11 @@ MESSAGES = {
     },
 }
 
+# Maximum number of messages to fetch for summarization
+MAX_MESSAGES_TO_SUMMARIZE = 100
+
 intents = discord.Intents.default()
+intents.message_content = True  # Enable message content intent
 client = discord.Client(intents=intents)
 open_ai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
 
@@ -70,5 +74,68 @@ async def schedule_messages():
                     random_message = f"{mentions} \n\n {random_message}"
 
                 await channel.send(random_message)
+
+async def summarize_channel_messages(messages):
+    if not messages:
+        return "No messages to summarize."
+    
+    # Format messages for OpenAI
+    formatted_messages = []
+    for msg in messages:
+        if not msg.author.bot and msg.content:  # Skip bot messages and empty messages
+            timestamp = msg.created_at.strftime("%H:%M")
+            formatted_messages.append(f"{timestamp} - {msg.author.display_name}: {msg.content}")
+    
+    if not formatted_messages:
+        return "No user messages found to summarize."
+    
+    messages_text = "\n".join(formatted_messages)
+    
+    try:
+        response = open_ai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that summarizes Discord conversations."},
+                {"role": "user", "content": f"Summarize the following Discord conversation in a concise way highlighting the main topics and key points discussed:\n\n{messages_text}"}
+            ],
+            max_tokens=300,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+        return "Sorry, I encountered an error while generating the summary."
+
+@client.event
+async def on_message(message):
+    # Ignore messages from the bot itself
+    if message.author == client.user:
+        return
+    
+    # Check if the bot is mentioned and "summarize" is in the message
+    if client.user.mentioned_in(message) and "summarize" in message.content.lower():
+        channel = message.channel
+        await message.channel.send("Generating summary, please wait...")
+        
+        # Fetch messages from the channel
+        messages = []
+        async for msg in channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE):
+            # Only include messages from today
+            if msg.created_at.date() == datetime.datetime.now().date():
+                messages.append(msg)
+        
+        # If there are channel mentions, use the first mentioned channel instead
+        if message.channel_mentions:
+            mentioned_channel = message.channel_mentions[0]
+            await message.channel.send(f"Summarizing messages from {mentioned_channel.mention}...")
+            
+            messages = []
+            async for msg in mentioned_channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE):
+                if msg.created_at.date() == datetime.datetime.now().date():
+                    messages.append(msg)
+        
+        # Generate and send the summary
+        summary = await summarize_channel_messages(messages)
+        await message.channel.send(f"**Daily Summary**\n\n{summary}")
 
 client.run(TOKEN)
