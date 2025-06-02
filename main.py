@@ -6,7 +6,6 @@ import os
 import pytz
 from openai import OpenAI
 import dateparser
-import re
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -24,8 +23,7 @@ MESSAGES = {
     },
 }
 
-# Maximum number of messages to fetch for summarization
-MAX_MESSAGES_TO_SUMMARIZE = 100
+MAX_MESSAGES_TO_SUMMARIZE = 1000
 
 intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent
@@ -109,39 +107,29 @@ async def summarize_channel_messages(messages):
         return "Sorry, I encountered an error while generating the summary."
 
 @client.event
-async def on_message(message):
-    # Ignore messages from the bot itself
+async def on_message(message: discord.Message):
     if message.author == client.user:
         return
     
-    # Check if the bot is mentioned and "summarize" is in the message
     if client.user.mentioned_in(message) and "summarize" in message.content.lower():
         channel = message.channel
         
-        # Default to today's date
         target_date = datetime.datetime.now().date()
         date_str = "today"
         
-        # Extract the full message content
         content = message.content.lower()
         
-        # Remove bot mention from the content to get cleaner text
-        # This handles both <@ID> and <@!ID> formats
         for mention in message.mentions:
             mention_text = f"<@{mention.id}>"
             mention_text_nick = f"<@!{mention.id}>"
             content = content.replace(mention_text, "").replace(mention_text_nick, "")
             
-        # Remove any channel mentions to avoid confusing the date parser
         for ch_mention in message.channel_mentions:
             content = content.replace(f"<#{ch_mention.id}>", "")
         
-        # Clean up the content - remove the "summarize" command and any extra spaces
         content = content.replace("summarize", "").strip()
         
-        # If there's any text left, try to parse it as a date
         if content:
-            # Try to parse the date using dateparser
             parsed_date = dateparser.parse(content, settings={
                 'RELATIVE_BASE': datetime.datetime.now(),
                 'PREFER_DATES_FROM': 'past'
@@ -156,23 +144,21 @@ async def on_message(message):
         
         await message.channel.send(f"Generating summary for {date_str}, please wait...")
         
-        # Fetch messages from the channel
         messages = []
         mentioned_channel = channel
         
-        # If there are channel mentions, use the first mentioned channel instead
         if message.channel_mentions:
             mentioned_channel = message.channel_mentions[0]
             await message.channel.send(f"Summarizing messages from {mentioned_channel.mention}...")
         
-        # Fetch messages with date filtering
-        async for msg in mentioned_channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE):
-            # Check if message is from the target date
-            msg_date = msg.created_at.date()
-            if msg_date == target_date:
-                messages.append(msg)
+        day_before = target_date - datetime.timedelta(days=1)
         
-        # Generate and send the summary
+        after_date = datetime.datetime.combine(day_before, datetime.time.min).replace(tzinfo=pytz.UTC)
+        before_date = datetime.datetime.combine(target_date, datetime.time.max).replace(tzinfo=pytz.UTC)
+        
+        async for msg in mentioned_channel.history(limit=MAX_MESSAGES_TO_SUMMARIZE, before=before_date, after=after_date):
+            messages.append(msg)
+        
         if messages:
             summary = await summarize_channel_messages(messages)
             await message.channel.send(f"**Summary for {date_str}**\n\n{summary}")
